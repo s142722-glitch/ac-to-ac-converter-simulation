@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Single-phase AC–AC Converter · RL Load</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{
+    --bg:#0e1116;
+    --panel:#151a22;
+    --panel-2:#1b212b;
+    --line:#262d39;
+    --ink:#e6ecf2;
+    --ink-dim:#8a93a3;
+    --accent:#7cc4ff;   /* voltage */
+    --accent-2:#ffb27a; /* current */
+    --grid:#202733;
+    --grid-strong:#2c3543;
+    --warn:#ff8585;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family: ui-sans-serif, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-feature-settings:"tnum" 1, "ss01" 1;
+  }
+  .app{
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:18px;
+    padding:18px;
+    height:100vh;
+  }
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px;
+    overflow:auto;
+  }
+  .stage{
+    display:grid;
+    grid-template-rows: auto 1fr;
+    gap:14px;
+    min-width:0;
+  }
+  header.title{
+    display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    border-bottom:1px solid var(--line);padding-bottom:10px;
+  }
+  h1{font-size:15px;font-weight:600;margin:0;letter-spacing:.2px}
+  h1 small{color:var(--ink-dim);font-weight:400;margin-left:8px}
+  .sub{color:var(--ink-dim);font-size:12px}
+
+  .group{margin-top:18px}
+  .group h2{
+    font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--ink-dim);margin:0 0 10px;font-weight:600;
+  }
+  .row{
+    display:grid;grid-template-columns: 1fr auto;gap:8px;align-items:center;
+    margin-bottom:10px;
+  }
+  .row .label{font-size:13px;display:flex;align-items:center;gap:8px}
+  .row .label .sym{
+    font-family: "Cambria Math","STIX Two Math","Latin Modern Math", Georgia, serif;
+    font-style:italic;font-size:16px;color:var(--ink)
+  }
+  .row .value{
+    font-variant-numeric: tabular-nums;
+    font-size:13px;color:var(--ink);
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    padding:3px 8px;border-radius:6px;min-width:74px;text-align:right;
+  }
+  input[type=range]{
+    grid-column:1 / -1;width:100%;
+    accent-color:var(--accent);
+    background:transparent;
+  }
+  .help{font-size:11.5px;color:var(--ink-dim);margin-top:-2px;margin-bottom:8px;line-height:1.45}
+
+  .readout{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 14px;
+    margin-top:12px;
+  }
+  .readout .ro-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    padding:4px 0;border-bottom:1px dashed var(--line);
+    font-size:13px;
+  }
+  .readout .ro-row:last-child{border-bottom:none}
+  .readout .k{color:var(--ink-dim)}
+  .readout .v{font-variant-numeric: tabular-nums}
+  .badge{
+    display:inline-block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+    padding:2px 6px;border-radius:4px;border:1px solid var(--line);color:var(--ink-dim);
+    margin-left:6px;
+  }
+  .badge.warn{color:var(--warn);border-color:#5a2a2a;background:#2a1414}
+  .badge.ok{color:#9fe6b4;border-color:#234a2c;background:#142318}
+
+  .legend{
+    display:flex;gap:14px;align-items:center;font-size:12px;color:var(--ink-dim);
+  }
+  .legend .sw{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  .plot-wrap{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    height:100%;
+    display:flex;flex-direction:column;min-height:0;
+  }
+  .plot-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px;
+  }
+  canvas{flex:1;width:100%;height:100%;display:block}
+  .footer{
+    color:var(--ink-dim);font-size:11.5px;line-height:1.5;
+    border-top:1px solid var(--line);padding-top:10px;margin-top:8px;
+  }
+  kbd{
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size:11px;background:var(--panel-2);border:1px solid var(--line);
+    padding:1px 5px;border-radius:4px;color:var(--ink);
+  }
+  .preset-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .preset-row button{
+    background:var(--panel-2);color:var(--ink);
+    border:1px solid var(--line);border-radius:6px;
+    padding:5px 9px;font-size:11.5px;cursor:pointer;
+  }
+  .preset-row button:hover{border-color:#3a4658}
+  .toggle{
+    display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-dim);
+    margin-top:8px;cursor:pointer;user-select:none;
+  }
+  .toggle input{accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel" id="controls">
+    <header class="title">
+      <h1>AC–AC Converter <small>RL load</small></h1>
+    </header>
+    <div class="sub" style="margin-top:8px;line-height:1.5">
+      Single-phase full-wave AC voltage controller feeding a series R–L load.
+      Adjust the firing angle <i>α</i> and load phase angle <i>φ</i>; the
+      extinction angle <i>β</i> is solved numerically from the load equation.
+    </div>
+
+    <div class="group">
+      <h2>Source</h2>
+      <div class="row">
+        <div class="label"><span class="sym">V<sub>m</sub></span> peak source voltage</div>
+        <div class="value"><span id="Vm-val">325.3</span> V</div>
+        <input id="Vm" type="range" min="50" max="600" step="1" value="325" />
+      </div>
+      <div class="row">
+        <div class="label"><span class="sym">f</span> line frequency</div>
+        <div class="value"><span id="f-val">50</span> Hz</div>
+        <input id="f" type="range" min="40" max="60" step="1" value="50" />
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Control</h2>
+      <div class="row">
+        <div class="label"><span class="sym">α</span> firing angle</div>
+        <div class="value"><span id="alpha-val">90.0</span>°</div>
+        <input id="alpha" type="range" min="0" max="180" step="0.5" value="90" />
+      </div>
+      <div class="help">
+        Trigger delay measured from each zero-crossing of <i>v<sub>s</sub></i>.
+      </div>
+
+      <div class="row">
+        <div class="label"><span class="sym">φ</span> load phase angle</div>
+        <div class="value"><span id="phi-val">45.0</span>°</div>
+        <input id="phi" type="range" min="0" max="89" step="0.5" value="45" />
+      </div>
+      <div class="help">
+        φ = arctan(ω<i>L</i>/<i>R</i>). For <i>α</i> ≤ <i>φ</i> conduction is continuous
+        and the converter has no control authority.
+      </div>
+
+      <div class="preset-row">
+        <button data-a="30"  data-p="15">α=30°, φ=15°</button>
+        <button data-a="60"  data-p="30">α=60°, φ=30°</button>
+        <button data-a="90"  data-p="45">α=90°, φ=45°</button>
+        <button data-a="120" data-p="60">α=120°, φ=60°</button>
+        <button data-a="45"  data-p="60">α &lt; φ (continuous)</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Computed</h2>
+      <div class="readout">
+        <div class="ro-row">
+          <span class="k">Extinction angle&nbsp; <i>β</i></span>
+          <span class="v"><span id="beta-val">—</span>°</span>
+        </div>
+        <div class="ro-row">
+          <span class="k">Conduction angle&nbsp; <i>γ = β − α</i></span>
+          <span class="v"><span id="gamma-val">—</span>°</span>
+        </div>
+        <div class="ro-row">
+          <span class="k">Load impedance&nbsp; |Z| (per-unit R)</span>
+          <span class="v"><span id="Z-val">—</span></span>
+        </div>
+        <div class="ro-row">
+          <span class="k">V<sub>o,rms</sub></span>
+          <span class="v"><span id="Vrms-val">—</span> V</span>
+        </div>
+        <div class="ro-row">
+          <span class="k">I<sub>o,rms</sub> · R</span>
+          <span class="v"><span id="Irms-val">—</span> V</span>
+        </div>
+        <div class="ro-row">
+          <span class="k">Mode</span>
+          <span class="v" id="mode-val">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Display</h2>
+      <label class="toggle"><input type="checkbox" id="showSrc" checked /> show source <i>v<sub>s</sub></i></label>
+      <label class="toggle"><input type="checkbox" id="showGate" checked /> mark firing instants α, π+α</label>
+      <label class="toggle"><input type="checkbox" id="showBeta" checked /> mark extinction β, π+β</label>
+    </div>
+
+    <div class="footer">
+      Current is plotted as <i>i</i>·R so it shares the voltage axis.
+      Numerical solution uses Newton iteration on
+      sin(β − φ) − sin(α − φ)·e<sup>−(β−α)/tan φ</sup> = 0.
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="plot-wrap">
+      <div class="plot-head">
+        <div class="legend">
+          <span><span class="sw" style="background:var(--accent)"></span>output voltage v<sub>o</sub>(ωt)</span>
+          <span><span class="sw" style="background:var(--accent-2)"></span>load current i<sub>o</sub>(ωt) · R</span>
+          <span><span class="sw" style="background:#3a4250"></span>source v<sub>s</sub>(ωt)</span>
+        </div>
+        <div class="sub" id="plot-info">one cycle · ωt ∈ [0°, 360°]</div>
+      </div>
+      <canvas id="plot"></canvas>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const deg = r => r*180/Math.PI;
+  const rad = d => d*Math.PI/180;
+
+  const state = {
+    Vm: 325, f: 50,
+    alpha: rad(90),   // firing angle
+    phi: rad(45),     // load phase
+    showSrc: true, showGate: true, showBeta: true,
+  };
+
+  // --- Solve β from sin(β-φ) = sin(α-φ) exp(-(β-α)/tan φ) ---
+  // Returns β in radians. When α ≤ φ the converter is in continuous
+  // conduction; we return β = α + π (full half-cycle conduction).
+  function solveBeta(alpha, phi){
+    if (phi < 1e-6){
+      // Pure resistive load: β = π (or α whichever is larger? for α<π conduction ends at π)
+      return Math.PI;
+    }
+    if (alpha <= phi + 1e-9){
+      // continuous conduction
+      return alpha + Math.PI;
+    }
+    const tanPhi = Math.tan(phi);
+    const f  = b => Math.sin(b - phi) - Math.sin(alpha - phi)*Math.exp(-(b-alpha)/tanPhi);
+    const fp = b => Math.cos(b - phi) + Math.sin(alpha - phi)*Math.exp(-(b-alpha)/tanPhi)/tanPhi;
+    // β lies in (α, α+π).  Use bisection-safe Newton.
+    let lo = alpha + 1e-6, hi = alpha + Math.PI;
+    // Make sure of sign change
+    let flo = f(lo), fhi = f(hi);
+    // Newton seed:
+    let b = alpha + Math.PI - (alpha - phi); // heuristic
+    b = Math.min(Math.max(b, lo+1e-4), hi-1e-4);
+    for (let i=0; i<60; i++){
+      const F  = f(b);
+      const Fp = fp(b);
+      let bn = b - F/Fp;
+      if (!isFinite(bn) || bn <= lo || bn >= hi){
+        // fallback bisection step
+        const mid = 0.5*(lo+hi);
+        if (Math.sign(f(mid)) === Math.sign(flo)){ lo = mid; flo = f(mid); }
+        else                                      { hi = mid; fhi = f(mid); }
+        bn = 0.5*(lo+hi);
+      } else {
+        // tighten bracket using new point
+        if (Math.sign(F) === Math.sign(flo)){ lo = b; flo = F; }
+        else                                 { hi = b; fhi = F; }
+      }
+      if (Math.abs(bn - b) < 1e-9){ b = bn; break; }
+      b = bn;
+    }
+    return b;
+  }
+
+  // Output voltage and current (× R) over one half-cycle starting at α.
+  // Returns vo, iR at angle ωt (in radians, absolute).
+  function waveform(wt, alpha, beta, phi, Vm){
+    // Reduce to a per-half-cycle frame.
+    const T = Math.PI;
+    // Determine which half-cycle interval we are in.
+    // Positive half: triggers at α, conducts until β. Sign of vs is +.
+    // Negative half: triggers at π+α, conducts until π+β. Sign is -.
+    // Get the "phase" within the current 2π cycle:
+    const cyc = ((wt % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+    let on = false, sign = +1, tau = 0;
+    // Positive half conducts cyc ∈ [α, β]  (always within [0,2π])
+    if (cyc >= alpha && cyc <= beta){
+      on = true; sign = +1; tau = cyc;
+    }
+    // Negative half conducts cyc ∈ [π+α, π+β]
+    else if (cyc >= Math.PI + alpha && cyc <= Math.PI + beta){
+      on = true; sign = -1; tau = cyc - Math.PI;
+    }
+    // Tail of negative half that wraps past 2π — redraw it from 0 in this cycle.
+    else if (beta > Math.PI && cyc <= beta - Math.PI){
+      on = true; sign = -1; tau = cyc + Math.PI;
+    }
+    if (!on) return {vo:0, iR:0, vs: Vm*Math.sin(wt)};
+    const tanPhi = Math.tan(phi);
+    // i·R = (Vm·cosφ) [ sin(τ-φ) - sin(α-φ) exp(-(τ-α)/tanφ) ] · sign
+    const inner = Math.sin(tau - phi) - Math.sin(alpha - phi)*Math.exp(-(tau - alpha)/tanPhi);
+    const iR = sign * Vm * Math.cos(phi) * inner;
+    const vo = sign * Vm * Math.sin(tau);
+    return {vo, iR, vs: Vm*Math.sin(wt)};
+  }
+
+  // RMS values via integration of vo² and (i·R)² over the conduction window.
+  function computeRMS(alpha, beta, phi, Vm){
+    const N = 4000;
+    const tanPhi = Math.tan(phi);
+    let sumV = 0, sumI = 0;
+    const dt = (beta - alpha)/N;
+    for (let k=0; k<N; k++){
+      const tau = alpha + (k+0.5)*dt;
+      const v = Vm*Math.sin(tau);
+      const iR = Vm*Math.cos(phi)*(Math.sin(tau - phi) - Math.sin(alpha - phi)*Math.exp(-(tau-alpha)/tanPhi));
+      sumV += v*v;
+      sumI += iR*iR;
+    }
+    // Two half-cycles per period contribute equally; period is 2π.
+    const Vrms = Math.sqrt( (2*sumV*dt) / (2*Math.PI) );
+    const Irms = Math.sqrt( (2*sumI*dt) / (2*Math.PI) );
+    return {Vrms, Irms};
+  }
+
+  // ---------- Plot ----------
+  const canvas = $('plot');
+  const ctx = canvas.getContext('2d');
+  function resize(){
+    const r = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.floor(r.width  * dpr);
+    canvas.height = Math.floor(r.height * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  function draw(){
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    ctx.clearRect(0,0,W,H);
+
+    const padL=58, padR=18, padT=18, padB=34;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const xMin = 0, xMax = 2*Math.PI;
+    const yMax = state.Vm*1.15, yMin = -yMax;
+
+    const X = wt => padL + (wt - xMin)/(xMax - xMin) * plotW;
+    const Y = v  => padT + (1 - (v - yMin)/(yMax - yMin)) * plotH;
+
+    // ----- grid -----
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'var(--grid)';
+    ctx.strokeStyle = '#1f2632';
+    ctx.beginPath();
+    // y grid
+    const ySteps = 8;
+    for (let i=0;i<=ySteps;i++){
+      const v = yMin + (yMax-yMin)*i/ySteps;
+      const y = Y(v);
+      ctx.moveTo(padL, y); ctx.lineTo(W-padR, y);
+    }
+    ctx.stroke();
+
+    // x grid every 30°
+    ctx.strokeStyle = '#1f2632';
+    ctx.beginPath();
+    for (let d=0; d<=360; d+=30){
+      const x = X(rad(d));
+      ctx.moveTo(x, padT); ctx.lineTo(x, H-padB);
+    }
+    ctx.stroke();
+
+    // axes
+    ctx.strokeStyle = '#3a4250';
+    ctx.beginPath();
+    ctx.moveTo(padL, Y(0)); ctx.lineTo(W-padR, Y(0));
+    ctx.moveTo(padL, padT); ctx.lineTo(padL, H-padB);
+    ctx.stroke();
+
+    // x labels
+    ctx.fillStyle = '#8a93a3';
+    ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    for (let d=0; d<=360; d+=30){
+      ctx.fillText(d+'°', X(rad(d)), H-padB+16);
+    }
+    ctx.fillText('ωt', W-padR-8, H-padB+30);
+
+    // y labels
+    ctx.textAlign='right';
+    for (let i=0;i<=ySteps;i++){
+      const v = yMin + (yMax-yMin)*i/ySteps;
+      const y = Y(v);
+      ctx.fillText(v.toFixed(0), padL-6, y+3.5);
+    }
+    ctx.save();
+    ctx.translate(14, padT + plotH/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.textAlign='center';
+    ctx.fillStyle='#8a93a3';
+    ctx.fillText('amplitude  (V,  i·R)', 0, 0);
+    ctx.restore();
+
+    // ----- compute beta and waveforms -----
+    const a = state.alpha, p = state.phi;
+    const b = solveBeta(a, p);
+
+    // sample
+    const N = 1400;
+    const vs = new Float32Array(N+1);
+    const vo = new Float32Array(N+1);
+    const iR = new Float32Array(N+1);
+    for (let k=0; k<=N; k++){
+      const wt = xMin + (xMax - xMin)*k/N;
+      const w = waveform(wt, a, b, p, state.Vm);
+      vs[k]=w.vs; vo[k]=w.vo; iR[k]=w.iR;
+    }
+
+    // gate / extinction markers
+    function vline(wtVal, color, dashed, label){
+      const x = X(wtVal);
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.setLineDash(dashed ? [4,4] : []);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, padT); ctx.lineTo(x, H-padB);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (label){
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.fillText(label, x, padT-4);
+      }
+      ctx.restore();
+    }
+
+    if (state.showGate){
+      vline(a,             '#5fae6b', true, 'α');
+      vline(Math.PI + a,   '#5fae6b', true, 'π+α');
+    }
+    if (state.showBeta){
+      vline(b,             '#d36a6a', true, 'β');
+      vline(Math.PI + b,   '#d36a6a', true, 'π+β');
+    }
+
+    // source
+    if (state.showSrc){
+      ctx.strokeStyle = '#3a4250';
+      ctx.lineWidth = 1.25;
+      ctx.beginPath();
+      for (let k=0;k<=N;k++){
+        const wt = xMin + (xMax - xMin)*k/N;
+        const x = X(wt), y = Y(vs[k]);
+        if (k===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+
+    // output voltage (segmented; lift the pen between conduction intervals)
+    function drawSegmented(arr, color, width){
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      let drawing = false;
+      for (let k=0;k<=N;k++){
+        const wt = xMin + (xMax - xMin)*k/N;
+        const x = X(wt), y = Y(arr[k]);
+        const isZero = arr[k]===0;
+        if (isZero){
+          if (drawing){
+            // close stroke at zero baseline
+            ctx.lineTo(x, Y(0));
+            drawing = false;
+          }
+        } else {
+          if (!drawing){
+            ctx.moveTo(x, Y(0));
+            ctx.lineTo(x,y);
+            drawing = true;
+          } else {
+            ctx.lineTo(x,y);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+
+    drawSegmented(vo, getCSS('--accent'),  2.0);
+    drawSegmented(iR, getCSS('--accent-2'), 2.0);
+
+    // axis title for x
+    ctx.fillStyle='#8a93a3';
+    ctx.textAlign='center';
+    ctx.fillText('output voltage and current versus ωt', padL + plotW/2, H-6);
+
+    // update readouts
+    $('beta-val').textContent  = deg(b).toFixed(2);
+    $('gamma-val').textContent = deg(b - a).toFixed(2);
+    $('Z-val').textContent     = (1/Math.cos(p)).toFixed(3);
+    const {Vrms, Irms} = computeRMS(a, b, p, state.Vm);
+    $('Vrms-val').textContent = Vrms.toFixed(1);
+    $('Irms-val').textContent = Irms.toFixed(1);
+    const mode = $('mode-val');
+    if (a <= p + 1e-6){
+      mode.innerHTML = 'continuous <span class="badge warn">α ≤ φ</span>';
+    } else {
+      mode.innerHTML = 'discontinuous <span class="badge ok">α &gt; φ</span>';
+    }
+  }
+
+  function getCSS(v){
+    return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  }
+
+  // ---------- Controls ----------
+  function bind(id, key, fmt, transform){
+    const el = $(id), out = $(id+'-val');
+    el.addEventListener('input', () => {
+      const raw = parseFloat(el.value);
+      const val = transform ? transform(raw) : raw;
+      state[key] = val;
+      out.textContent = fmt(raw);
+      draw();
+    });
+  }
+  bind('Vm','Vm', v=>v.toFixed(1));
+  bind('f','f', v=>v.toFixed(0));
+  bind('alpha','alpha', v=>v.toFixed(1), v=>rad(v));
+  bind('phi','phi', v=>v.toFixed(1), v=>rad(v));
+
+  ['showSrc','showGate','showBeta'].forEach(id=>{
+    $(id).addEventListener('change', e=>{
+      state[id] = e.target.checked; draw();
+    });
+  });
+
+  document.querySelectorAll('.preset-row button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const a = parseFloat(btn.dataset.a), p = parseFloat(btn.dataset.p);
+      $('alpha').value = a; $('alpha-val').textContent = a.toFixed(1); state.alpha = rad(a);
+      $('phi').value   = p; $('phi-val').textContent   = p.toFixed(1); state.phi   = rad(p);
+      draw();
+    });
+  });
+
+  resize();
+})();
+</script>
+</body>
+</html>
